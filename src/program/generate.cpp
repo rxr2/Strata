@@ -8632,7 +8632,28 @@ int main(int argc, char** argv) {
         const uint64_t slack = 1200ull << 20;   // MemAvailable overstates what the cache can hold (~1 GiB on the #2824 box)
         pp::Host host;
         host.page_cache = src.unbuffered() ? 0 : (hm->available > slack ? hm->available - slack : 0);
-        host.h2d_gbps = g_last_h2d_gbps > 0.0 ? g_last_h2d_gbps : 12.0;
+        // T01: an explicit --pcie-frac skips the probe up the stack, which left the planner on the 12.0 default while
+        // this box copies pinned host->device at 28.4 GB/s.  STRATA_H2D_GBPS is the operator's figure; else probe once
+        // here if no probe ran yet; 12.0 only when the probe cannot run either.  The source goes into the log line.
+        const char* h2d_env = std::getenv("STRATA_H2D_GBPS");
+        const double h2d_gbps = h2d_env != nullptr ? std::atof(h2d_env) : 0.0;
+        const char* h2d_src = "default";
+        if (h2d_gbps > 0.0) {
+            host.h2d_gbps = h2d_gbps;
+            h2d_src = "STRATA_H2D_GBPS";
+        } else {
+            static bool h2d_tried = false;   // once per process: a failed probe (no VRAM for its buffer) is not retried every prompt
+            if (g_last_h2d_gbps <= 0.0 && !h2d_tried) {
+                h2d_tried = true;
+                probe_pcie_h2d_gbps();
+            }
+            if (g_last_h2d_gbps > 0.0) {
+                host.h2d_gbps = g_last_h2d_gbps;
+                h2d_src = "probe";
+            } else {
+                host.h2d_gbps = 12.0;
+            }
+        }
         std::string why;
         host.ssd_gbps = drive_read_gbps(o.native_preset.empty() ? o.pack : o.native_preset, why);   // where the experts live
         if (const char* e = std::getenv("STRATA_PREFILL_PLAN_TOKS"); e != nullptr && std::atof(e) > 0.0)
@@ -8688,12 +8709,12 @@ int main(int argc, char** argv) {
         pp::Pick pick = pp::choose(host, tier, tokens, opts, 0);
         std::fprintf(stderr, "%s\n", pp::describe(pick, host, tokens).c_str());
         std::fprintf(stderr, "strata: prefill plan inputs: %.1f GiB experts, %.1f GiB in the GPU caches, %.1f GiB RAM copy "
-                             "(%lld lend slots kept), file tier %.1f GiB; %.1f GiB available for the page cache%s; PCIe %.1f GB/s; "
+                             "(%lld lend slots kept), file tier %.1f GiB; %.1f GiB available for the page cache%s; PCIe %.1f GB/s (%s); "
                              "drive %.2f GB/s (%s); a %lld-token prompt\n",
                      (double) total / pp::kGiB, (double) gpu_cache_bytes / pp::kGiB, (double) ram_copy / pp::kGiB,
                      (long long) kept_slots, (double) tier.file_tier / pp::kGiB, (double) host.page_cache / pp::kGiB,
-                     src.unbuffered() ? " (the file tier reads unbuffered: none)" : "", host.h2d_gbps, host.ssd_gbps, why.c_str(),
-                     (long long) tokens);
+                     src.unbuffered() ? " (the file tier reads unbuffered: none)" : "", host.h2d_gbps, h2d_src, host.ssd_gbps,
+                     why.c_str(), (long long) tokens);
         if (!pick.changed) {
             restore();
             return chunk;
