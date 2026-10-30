@@ -4,6 +4,7 @@
 #   NAME   a label for the run (letters, digits, -, _)
 #   MODE   prefill (12K/32K/64K) | decode (5K/64K, 512 tokens) | quality (first token + agent tasks) | all
 #   EXE=<path to strata>   the binary to measure (default: this fork's build-rx/strata); EXE=prod measures production
+#   ARG--flag=VALUE        replace (or add) an engine argument, e.g. ARG--prefill=auto:16384
 #   any other KEY=VALUE    an extra engine environment variable
 # What it does: copies the production config, writes a test config (exe, TheRock libraries, env), restarts strata-rx,
 # runs the benchmark, ALWAYS restores the production config and restarts strata-rx again.

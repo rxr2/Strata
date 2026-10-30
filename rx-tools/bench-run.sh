@@ -16,6 +16,10 @@ for x in kv:
     if not x: continue
     k, v = x.split('=', 1)
     if k == 'EXE': exe = v
+    elif k.startswith('ARG--'):   # ARG--prefill=auto:16384: replace (or add) an engine argument
+        flag, a = k[3:], c['args']
+        if flag in a: a[a.index(flag) + 1] = v
+        else: a += [flag, v]
     else: c['env'][k] = v
 if exe != 'prod':
     c['exe'] = exe
