@@ -47,5 +47,6 @@ if [[ $MODE == quality || $MODE == all ]]; then
   python3 "$LAB/K1K2-fp16ref/quality2.py" quality "$OUT" > "$OUT/quality.log" 2>&1
   python3 "$LAB/K1K2-fp16ref/compare2.py" "$LAB/K1K2-fp16ref/R_fp16.json" "$LAB/K1K2-fp16ref/K_both.json" "$OUT/quality.json" >> "$OUT/RESULT.txt" 2>&1
 fi
-tail -n +"$mark" "$LOG" | grep -a "strata prefill timing\|strata decode timing\|prompt .* read in\|no progress\|error" > "$OUT/engine.log"
+tail -n +"$mark" "$LOG" | grep -a "strata prefill timing\|strata decode timing\|prompt .* read in\|no progress\|error\|file tier I/O this request\|resident RAM:" > "$OUT/engine.log"
+grep -o "the OS read [0-9.]* MB from storage" "$OUT/engine.log" | awk '{s+=$4; n++} END {if (n) printf "drive reads: %.1f GB in %d requests\n", s/1000, n}' >> "$OUT/RESULT.txt"
 echo "$(date +%T) done" >> "$OUT/RESULT.txt"
