@@ -30,5 +30,8 @@ T=strata; [ "$TESTS" = ON ] && T=all
 start=$SECONDS
 nice -n 10 cmake --build "$OUT" --target $T -j "$JOBS" > "$OUT/build.log" 2>&1 \
   || { echo "build failed after $((SECONDS-start)) s: $OUT/build.log"; grep -m 20 -E "error:|FAILED:" "$OUT/build.log"; exit 1; }
-echo "build ok ($MODE, tests=$TESTS) in $((SECONDS-start)) s: $OUT/strata"
+# the hipBLASLt tuning tables beside the binary (what packaging/stage_tuning.py does): without the table for this
+# hipBLASLt version (TheRock 10.1: 100401) the prompt's dense GEMMs fall back to plain hipBLAS, ~5x slower (measured)
+mkdir -p "$OUT/tuning" && cp -p "$SRC"/tools/hip/gfx1100-hipblaslt-*.txt "$OUT/tuning/"
+echo "build ok ($MODE, tests=$TESTS) in $((SECONDS-start)) s: $OUT/strata (tuning: $(ls "$OUT/tuning" | tr '\n' ' '))"
 ls -la "$OUT/strata" 2>/dev/null || true
