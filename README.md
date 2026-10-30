@@ -22,6 +22,8 @@
 
 <p align="center"><sub><b>English</b> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a> · <a href="README.de.md">Deutsch</a> · <a href="README.fr.md">Français</a> · <a href="README.es.md">Español</a> · <a href="README.pt-BR.md">Português</a> · <a href="README.pl.md">Polski</a></sub></p>
 
+> **This is the `rx7900` fork for the AMD Radeon RX 7900 XTX (gfx1100).** A measured, tuned configuration (prefill ~3,180 tok/s at 12K-64K, decode 85-91 tok/s, no long-prompt hangs on Qwen3.8-Flash-Next IQ3_S), what did not help, the pipeline diagram and the benchmark tools: **[docs/RX7900XTX.md](docs/RX7900XTX.md)**. Everything else below is upstream Strata ([Niko1221/Strata](https://github.com/Niko1221/Strata)).
+
 **Free, open source, and yours to run.** Use Strata on your desktop or with your favorite coding tools. No account needed.
 
 ## Models
