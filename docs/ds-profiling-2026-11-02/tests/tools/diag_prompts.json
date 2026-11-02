@@ -1,0 +1,17 @@
+[
+ {
+  "name": "prose_en",
+  "max_tokens": 320,
+  "prompt": "Explain step by step how a ring all-reduce works across 6 GPUs. Give a worked example with numbers for 6 ranks and 12 chunks, then C++ pseudocode with comments."
+ },
+ {
+  "name": "code_py",
+  "max_tokens": 640,
+  "prompt": "Write a complete Python module implementing an LRU cache with TTL expiry, thread safety and type hints, plus pytest unit tests covering eviction order, expiry and concurrent access."
+ },
+ {
+  "name": "polish_tech",
+  "max_tokens": 320,
+  "prompt": "Wyjasnij po polsku, jak dziala HTTP/2: multipleksowanie, kompresja naglowkow HPACK, priorytetyzacja strumieni i roznica wzgledem HTTP/1.1. Podaj konkretny przyklad z liczbami."
+ }
+]

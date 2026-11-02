@@ -1,0 +1,11 @@
+11:22:07 start prefill /home/rxr2/llm/strata/strata
+strata generate: session is up (engine 0.1.52)
+strata generate: the file tier reads unbuffered (STRATA_UNBUFFERED_LOAD=1)
+strata: prefill plan inputs: 46.8 GiB experts, 15.0 GiB in the GPU caches, 34.4 GiB RAM copy (1344 lend slots kept), file tier 0.0 GiB; 0.0 GiB available for the page cache (the file tier reads unbuffered: none); PCIe 12.0 GB/s; drive 2.50 GB/s (nvme1n1 is NVMe); a 32768-token prompt
+strata: STRATA_HIP_WMMA: the prompt attention on matrix cores on (gfx1100)
+prefill p12k 2678.7 tok/s, TTFT 4.225 s
+prefill p32k 2951.2 tok/s, TTFT 11.165 s
+prefill p64k 3057.25 tok/s, TTFT 22.259999999999998 s
+drive reads: 160,9 GB in 9 requests
+11:24:55 done
+11:25:42 production restored

@@ -1,0 +1,18 @@
+GPU: {'work': 9737.9, 'spin_cpu': 592.2, 'pcie_rows': 938.1, 'host_gap': 160.9, 'launch_gap': 4252.8, 'n_gaps': 1180.3, 'avg_gap_us': 3.6}
+host: {'adapt_wait': 19, 'gpu_reach_wait': 9506, 'cpu_pool': 2948, 'plan_jobs': 305, 'stage': 39, 'commit_emit': 13, 'draft': 1156, 'adapt_join': 0, 'other': 26, 'verify_rest': 1162} {'cpu_experts': 1.77, 'cpu_entries': 2.33, 'vram_hits': 14.0, 'pcie': 0.09}
+15674 us/token, 1.48 tokens/window, 1185 kernels/token
+Start okna (host → GPU)                           66      32      98   0.6%
+HC (hyper-connections)                          1350     484    1834  11.7%
+Uwaga QSA                                        627     291     918   5.9%
+GDN rekurencja                                   336     180     516   3.3%
+Router + plan ekspertów                          399     155     554   3.5%
+Macierze gęste (projekcje, shared, głowa)       3918    1212    5129  32.7%
+Eksperty na GPU (cache)                         2462    1222    3684  23.5%
+Czekanie na eksperty z CPU                      1662     460    2122  13.5%
+Sampler + logity                                 138      86     224   1.4%
+Commit okna                                      160       2     162   1.0%
+Drafter MTP (kernele)                             14       4      17   0.1%
+Host między oknami (GPU stoi)                      0     161     161   1.0%
+Kopie hosta (hipMemcpy)                            7       2       8   0.1%
+Normy i drobne                                   125     104     229   1.5%
+Inne                                               7      18      25   0.2%

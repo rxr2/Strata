@@ -1,0 +1,25 @@
+14:09:54 start quality /home/rxr2/Projekty/strata-rx7900/build-rx/strata
+strata generate: session is up (engine 0.1.52)
+strata generate: the file tier reads unbuffered (STRATA_UNBUFFERED_LOAD=1)
+strata: prefill plan inputs: 46.8 GiB experts, 14.9 GiB in the GPU caches, 31.2 GiB RAM copy (0 lend slots kept), file tier 0.7 GiB; 0.0 GiB available for the page cache (the file tier reads unbuffered: none); PCIe 28.7 GB/s (probe); drive 2.50 GB/s (nvme1n1 is NVMe); a 32768-token prompt
+strata: STRATA_HIP_WMMA: the prompt attention on matrix cores on (gfx1100)
+== first token, 4k (24 prompts)
+   K_both     KL mean 0.01547  median 0.00641  max 0.1493  top-1 like ref 22/24
+   quality    KL mean 0.02154  median 0.00825  max 0.2598  top-1 like ref 21/24
+   quality closer to ref than K_both in 10/24 prompts
+== first token, 16k (8 prompts)
+   K_both     KL mean 0.01922  median 0.00753  max 0.0986  top-1 like ref 8/8
+   quality    KL mean 0.02247  median 0.01497  max 0.0865  top-1 like ref 8/8
+   quality closer to ref than K_both in 1/8 prompts
+== first token, all (32 prompts)
+   K_both     KL mean 0.01640  median 0.00641  max 0.1493  top-1 like ref 30/32
+   quality    KL mean 0.02177  median 0.00916  max 0.2598  top-1 like ref 29/32
+   quality closer to ref than K_both in 11/32 prompts
+== agent tasks (temperature 0, 192 tokens): characters equal to the reference before the first difference
+   edit     ref  566 chars | K_both  566 (identical) | quality  566 (identical) |
+   newcode  ref  761 chars | K_both  761 (identical) | quality  749 |
+   explain  ref  698 chars | K_both   77 | quality  136 |
+   json     ref  709 chars | K_both  485 | quality  256 |
+drive reads: 356,9 GB in 36 requests
+14:13:11 done
+14:13:57 production restored

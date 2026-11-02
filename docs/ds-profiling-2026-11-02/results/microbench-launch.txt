@@ -1,0 +1,41 @@
+RX 7900 XTX, gfx1100, TheRock ROCm 10.1, engine 0.1.52, 2026-11-02.
+All values without rocprofv3 unless stated.
+
+== Empty dependent kernel floor (dflash2_launch_bench 200) ==
+graph of 200 chained kernels,   1 blocks: 2.98 us/kernel
+graph of 200 chained kernels,  64 blocks: 2.52
+graph of 200 chained kernels, 256 blocks: 2.51
+graph of 200 chained kernels,1024 blocks: 2.99
+single launch from idle, 200 kernels,   1 blocks: events 0.512 ms, wall 0.524
+single launch from idle, 200 kernels,  64 blocks: events 0.511 ms, wall 0.530
+single launch from idle, 200 kernels, 256 blocks: events 0.509 ms, wall 0.521
+single launch from idle, 200 kernels,1024 blocks: events 0.663 ms, wall 0.676
+stream of 200 chained kernels,   1 blocks: 2.94
+stream of 200 chained kernels,  64 blocks: 2.88
+stream of 200 chained kernels, 256 blocks: 2.95
+stream of 200 chained kernels,1024 blocks: 3.86
+(second baseline run, different clock: 1 block 3.19 us; env variants below use that run)
+
+== ROCm launch env variants (graph 200 chained, 1 block, us/kernel) ==
+base                         3.19
+AMD_DIRECT_DISPATCH=0        3.22
+AMD_DIRECT_DISPATCH=1        3.22
+GPU_MAX_HW_QUEUES=1          3.31
+GPU_MAX_HW_QUEUES=4          3.24
+HIP_FORCE_DEV_KERNARG=1      3.17
+AMD_OPT_FLUSH=1              3.12
+GPU_MAX_COMMAND_BUFFERS=4    3.21
+-> none lowers the ~2.5-3.2 us dependent-kernel floor; only fewer nodes help.
+
+== copy_rows_from_mapped shape benchmark (40 rows, 4 miss rows, 300 iters) ==
+row-block threads=128: 19.10 us/call   2.14 GB/s (miss rows)
+row-block threads=256: 18.07           2.27
+row-block threads=512: 17.17           2.39
+row-block threads=1024:16.70           2.45
+split B=2, threads=128: 16.83          2.43
+split B=2, threads=256: 16.72          2.45
+split B=4, threads=128: 16.93          2.42
+flat copy (same miss bytes): 4.94 us   8.28 GB/s
+-> the per-row grid is block/latency bound, not byte bound; a flat/compacted copy is ~4x faster
+   for the same 40 KB. The engine's real copy_rows median is 7.4 us, mean 36 us (tail = late CPU rows),
+   so the kernel shape is a small part of the 740 us/token stage.

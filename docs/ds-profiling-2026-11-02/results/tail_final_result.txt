@@ -1,0 +1,62 @@
+== randomized tail7 A/B
+== randomized tail7 A/B (3 blocks)
+class             base   tail7   delta    sd
+prose_en          95.9    87.5   -8.7%   0.6
+code_py           94.4    99.5   +5.5%   3.0
+polish_travel     73.8    84.2  +14.1%   3.6
+file_edit         78.6    90.2  +14.7%   0.7
+json              85.9    89.4   +4.9%  10.5
+repeat            99.3   115.7  +16.7%   7.1
+math              88.4    98.5  +11.4%   3.2
+sql              100.7   115.8  +15.2%  14.4
+polish_tech       72.0    79.6  +10.5%   4.6
+summary           80.2    88.9  +10.9%  15.2
+OVERALL 86.94 94.93 +9.19 2.79
+per-block deltas [6.59, 8.84, 12.14]
+
+
+== profiled pair (stages.json)
+tailbase-prof p1: us_tok 11807 tok_win 2.25 gpu_work 7460 pcie_rows 935 launch_gap 2893 plan_wait 361 rows_read 935 pcie 688 cpu_pool 0
+tailbase-prof p2: us_tok 12545 tok_win 2.27 gpu_work 7865 pcie_rows 1250 launch_gap 2909 plan_wait 375 rows_read 1250 pcie 864 cpu_pool 0
+tailbase-prof p3: us_tok 15547 tok_win 1.63 gpu_work 9344 pcie_rows 1599 launch_gap 3908 plan_wait 499 rows_read 1599 pcie 1012 cpu_pool 0
+tail7-prof p1: us_tok 12981 tok_win 1.84 gpu_work 8255 pcie_rows 599 launch_gap 3460 plan_wait 511 rows_read 599 pcie 565 cpu_pool 0
+tail7-prof p2: us_tok 11716 tok_win 2.30 gpu_work 7635 pcie_rows 718 launch_gap 2883 plan_wait 342 rows_read 718 pcie 582 cpu_pool 0
+tail7-prof p3: us_tok 15674 tok_win 1.48 gpu_work 9738 pcie_rows 938 launch_gap 4253 plan_wait 537 rows_read 938 pcie 718 cpu_pool 0
+
+== quality
+14:09:54 start quality /home/rxr2/Projekty/strata-rx7900/build-rx/strata
+strata generate: session is up (engine 0.1.52)
+strata generate: the file tier reads unbuffered (STRATA_UNBUFFERED_LOAD=1)
+strata: prefill plan inputs: 46.8 GiB experts, 14.9 GiB in the GPU caches, 31.2 GiB RAM copy (0 lend slots kept), file tier 0.7 GiB; 0.0 GiB available for the page cache (the file tier reads unbuffered: none); PCIe 28.7 GB/s (probe); drive 2.50 GB/s (nvme1n1 is NVMe); a 32768-token prompt
+strata: STRATA_HIP_WMMA: the prompt attention on matrix cores on (gfx1100)
+== first token, 4k (24 prompts)
+   K_both     KL mean 0.01547  median 0.00641  max 0.1493  top-1 like ref 22/24
+   quality    KL mean 0.02154  median 0.00825  max 0.2598  top-1 like ref 21/24
+   quality closer to ref than K_both in 10/24 prompts
+== first token, 16k (8 prompts)
+   K_both     KL mean 0.01922  median 0.00753  max 0.0986  top-1 like ref 8/8
+   quality    KL mean 0.02247  median 0.01497  max 0.0865  top-1 like ref 8/8
+   quality closer to ref than K_both in 1/8 prompts
+== first token, all (32 prompts)
+   K_both     KL mean 0.01640  median 0.00641  max 0.1493  top-1 like ref 30/32
+   quality    KL mean 0.02177  median 0.00916  max 0.2598  top-1 like ref 29/32
+   quality closer to ref than K_both in 11/32 prompts
+== agent tasks (temperature 0, 192 tokens): characters equal to the reference before the first difference
+   edit     ref  566 chars | K_both  566 (identical) | quality  566 (identical) |
+   newcode  ref  761 chars | K_both  761 (identical) | quality  749 |
+   explain  ref  698 chars | K_both   77 | quality  136 |
+   json     ref  709 chars | K_both  485 | quality  256 |
+drive reads: 356,9 GB in 36 requests
+14:13:11 done
+14:13:57 production restored
+
+
+== D runs (single)
+tailr6-1 101.64
+tailr8-1 91.97
+tailp10-1 94.21
+tailp30-1 98.32
+tailq4-1 92.86
+tailq4t-1 104.71
+tailres3072-1 97.89
+tailres2048-1 90.67
