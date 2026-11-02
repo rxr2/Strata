@@ -1203,6 +1203,10 @@ struct Drive {
     /// needs no locking.  `d.layers` is the CURRENT layer on entry (the adapter increments it as it walks the
     /// blob), which is why the layer index comes from there rather than from a counter of our own.
     std::FILE* routing = nullptr;
+    /// STRATA_HIT_STATS=1 (diagnostic, default off): routed entries per layer by lane - 3 counters
+    /// (VRAM hit, PCIe/peer, CPU) at layer * 3.  Filled by drive_pool_multi_impl, printed and reset at
+    /// the end of every request.
+    std::vector<int64_t> hit_stats;
 };
 
 void drive_pool(void* user, const float* x_f, const int32_t* ids, const float* weights, int64_t n_embd, int64_t k,
@@ -1240,7 +1244,13 @@ void drive_pool_multi_impl(void* user, const float* x_f, const int32_t* ids, int
     Drive* t = (Drive*) user;
     t->d.layers = layer;
     const Clock::time_point a = Clock::now();
+    const int64_t h0 = t->d.cache_hits, o0 = t->d.offload_entries, r0 = t->d.cache_refused;
     strata::core::expert_pool_dispatch_multi(t->d, x_f, ids, n_tok, k, out, arithmetic);
+    if (!t->hit_stats.empty() && layer >= 0 && (size_t) (layer * 3 + 2) < t->hit_stats.size()) {
+        t->hit_stats[(size_t) layer * 3 + 0] += t->d.cache_hits - h0;
+        t->hit_stats[(size_t) layer * 3 + 1] += t->d.offload_entries - o0;
+        t->hit_stats[(size_t) layer * 3 + 2] += t->d.cache_refused - r0;
+    }
     t->cpu_ms += std::chrono::duration<double, std::milli>(Clock::now() - a).count();
     ++t->calls;
     // the routing trace for the serve path: the same record format drive_pool writes (layer, k, ids, weights),
@@ -7619,6 +7629,7 @@ int main(int argc, char** argv) {
 
     if (remote_opt && !remote_opt->init(err)) { std::fprintf(stderr, "strata generate: %s\n", err.c_str()); return 1; }
     Drive drive;
+    if (std::getenv("STRATA_HIT_STATS") != nullptr) drive.hit_stats.assign((size_t) g.n_layers * 3, 0);
     // #731 (opt-in, STRATA_DISJOINT_ADAPT=1): the adaptive tiers leave an expert a helper GPU holds out of the primary's
     // promotion candidates (it would sit in both caches).  Asked live, from the helper's own cache (RemoteExperts::holds,
     // #854), so an expert the helper's tier swaps in or out later is followed - never a copy taken at load.
@@ -17179,6 +17190,16 @@ int main(int argc, char** argv) {
                 std::fprintf(stderr, "strata serve: decode expert cache hit rate: %.1f%% (%lld hits / %lld lookups)%s\n",
                              100.0 * (double) req_hits / (double) req_look,
                              (long long) req_hits, (long long) req_look, off);
+            }
+            if (!drive.hit_stats.empty()) {   // STRATA_HIT_STATS=1: per layer, routed entries by lane
+                std::fprintf(stderr, "strata hit stats per layer (vram,pcie,cpu):");
+                for (int64_t l = 0; l < g.n_layers; ++l)
+                    std::fprintf(stderr, " %lld:%lld,%lld,%lld", (long long) l,
+                                 (long long) drive.hit_stats[(size_t) l * 3 + 0],
+                                 (long long) drive.hit_stats[(size_t) l * 3 + 1],
+                                 (long long) drive.hit_stats[(size_t) l * 3 + 2]);
+                std::fprintf(stderr, "\n");
+                for (size_t q = 0; q < drive.hit_stats.size(); ++q) drive.hit_stats[q] = 0;
             }
             if (drive.d.tail_experts > 0)   // STRATA_ROUTE_TAIL_SKIP, cumulative
                 std::fprintf(stderr, "strata serve: route tail skip: %lld missed experts skipped (%lld entries) since the "
