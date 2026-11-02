@@ -40,6 +40,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <numeric>
 #include <exception>
 #include <fstream>
 #include <sstream>
@@ -553,24 +554,43 @@ bool MtpDrafter::top2_env() {
     return on;
 }
 
-// STRATA_MTP_TOP2=1 (a diagnostic for tree drafts): draft j's runner-up under the draft layer, from the head logits
-// the step just wrote (row 0), on the host.  Slow; only for measuring what a second branch would have caught.
-void MtpDrafter::record_top2(int j) {
+int MtpDrafter::topk_env() {
+    static const int k = [] {
+        const char* v = std::getenv("STRATA_MTP_TOPK");
+        int n = v != nullptr ? std::atoi(v) : 0;
+        if (n <= 0 && top2_env()) n = 2;
+        return std::max(0, std::min(32, n));
+    }();
+    return k;
+}
+
+// STRATA_MTP_TOPK=K (diagnostic): draft j's top-K tokens under the draft layer, from the head logits the step
+// just wrote (row 0), on the host. Slow; only for measuring the acceptance ceiling (does the target token sit in
+// the head's top-K?). The ids are mapped back through the draft vocab when the head is the subset.
+void MtpDrafter::record_topk(int j) {
+    const int K = topk_env();
+    if (K <= 0 || j < 0 || j >= max_t_) return;
     const int64_t nv = dhead_ != nullptr ? n_dvocab_ : n_vocab_;
     if ((int64_t) lg_host_.size() < nv) lg_host_.resize((size_t) nv);
+    if (cudaMemcpy(lg_host_.data(), head_logits_, (size_t) nv * sizeof(float), cudaMemcpyDeviceToHost) != cudaSuccess) return;
+    if ((int) topk_.size() < max_t_ * K) topk_.assign((size_t) max_t_ * (size_t) K, -1);
+    std::vector<int32_t> idx((size_t) nv);
+    std::iota(idx.begin(), idx.end(), 0);
+    std::partial_sort(idx.begin(), idx.begin() + K, idx.end(),
+                      [&](int32_t a, int32_t b) { return lg_host_[(size_t) a] > lg_host_[(size_t) b]; });
+    topk_k_ = K;
+    for (int r = 0; r < K; ++r) {
+        const int64_t id = idx[(size_t) r];
+        topk_[(size_t) j * K + r] = dhead_ != nullptr ? dvocab_host_[(size_t) id] : (int32_t) id;
+    }
+}
+
+void MtpDrafter::record_top2(int j) {
+    record_topk(j);
+    const int K = topk_k_;
     if ((int) top2_.size() < max_t_) top2_.assign((size_t) max_t_, -1);
     if (j < 0 || j >= max_t_) return;
-    if (cudaMemcpy(lg_host_.data(), head_logits_, (size_t) nv * sizeof(float), cudaMemcpyDeviceToHost) != cudaSuccess) {
-        top2_[(size_t) j] = -1;
-        return;
-    }
-    int64_t b1 = -1, b2 = -1;
-    for (int64_t i = 0; i < nv; ++i) {
-        const float v = lg_host_[(size_t) i];
-        if (b1 < 0 || v > lg_host_[(size_t) b1]) { b2 = b1; b1 = i; }
-        else if (b2 < 0 || v > lg_host_[(size_t) b2]) b2 = i;
-    }
-    top2_[(size_t) j] = b2 < 0 ? -1 : dhead_ != nullptr ? dvocab_host_[(size_t) b2] : (int32_t) b2;
+    top2_[(size_t) j] = K >= 2 ? topk_[(size_t) j * K + 1] : -1;
 }
 
 uint64_t MtpDrafter::bind_bytes(uint64_t head_row_bytes, int64_t n_vocab) const {
@@ -1670,6 +1690,7 @@ bool MtpDrafter::draft(int T, const int32_t* tokens, int64_t p, int a, int32_t* 
     };
 
     int n = 0;
+    const bool diag_topk = top2_env() || topk_env() > 0;   // STRATA_MTP_TOP2 / STRATA_MTP_TOPK: ceiling measurement
     if (min_p <= 0.0f && !chain_rule_ && max_steps > 0) {
         if (cudaGraphLaunch(cp ? round_exec_c_[T] : round_exec_[T], cs_) != cudaSuccess) {
             err = std::string("mtp draft: ") + cudaGetErrorString(cudaGetLastError());
@@ -1738,6 +1759,7 @@ bool MtpDrafter::draft(int T, const int32_t* tokens, int64_t p, int a, int32_t* 
         float pj = ((volatile float*) h_prob_)[0];
         if (probs) probs[0] = pj;
         n = 1;
+        if (diag_topk) record_top2(0);
         for (int j = 1; j < max_steps && (chain_rule_ ? chain_rule_(j - 1, pj) : pj >= min_p); ++j) {
             if (dt) cudaEventRecord(g_dt.eb[j], cs_);
             tl = Clock::now();
@@ -1756,6 +1778,7 @@ bool MtpDrafter::draft(int T, const int32_t* tokens, int64_t p, int a, int32_t* 
             pj = ((volatile float*) h_prob_)[j];
             if (probs) probs[j] = pj;
             ++n;
+            if (diag_topk) record_top2(j);
         }
         if (chain_rule_ && n >= max_steps) (void) chain_rule_(n - 1, pj);   // the last step of a full chain
         prefetch_ple(drafts[n - 1]);

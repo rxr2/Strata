@@ -71,6 +71,14 @@ public:
     /// STRATA_MTP_TOP2=1 (diagnostic): draft j's runner-up token in the last draft() (-1 = unknown)
     static bool top2_env();
     int32_t top2(int j) const { return j >= 0 && j < (int) top2_.size() ? top2_[(size_t) j] : -1; }
+    /// STRATA_MTP_TOPK=K (diagnostic, 2..32): draft j's top-K tokens in the last draft(), rank 0 = best.
+    /// 0 = off; STRATA_MTP_TOP2=1 without TOPK gives K=2.
+    static int topk_env();
+    int32_t topk(int j, int rank) const {
+        const int K = topk_k_;
+        return K > 0 && j >= 0 && rank >= 0 && rank < K && (size_t) (j * K + rank) < topk_.size()
+                   ? topk_[(size_t) (j * K + rank)] : -1;
+    }
     int max_t() const { return max_t_; }
     uint64_t vram_bytes() const { return vram_; }
     /// The draft layer's K/V state (read-only: --serve's STRATA_STATE_HASH check hashes it)
@@ -248,7 +256,10 @@ private:
     bool make_q4_dense(const std::vector<uint8_t>& blob, std::string& err);
     bool make_q4_head(std::string& err);
     void record_top2(int j);
+    void record_topk(int j);
     std::vector<int32_t> top2_, dvocab_host_;
+    std::vector<int32_t> topk_;
+    int topk_k_ = 0;
     std::vector<float> lg_host_;
     // --pipeline-windows 2 (chain_launch)
     bool stage_source_R(int T, std::string& err);   ///< set_source_R's rows into the bound buffer

@@ -15745,6 +15745,7 @@ int main(int argc, char** argv) {
             int64_t produced_n = 0, sfx_windows = 0, sfx_drafts = 0, sfx_ok = 0;
             int64_t chain_windows = 0, chain_drafts = 0, chain_ok = 0;   // --lookup-chain's own counts
             int64_t t2_rej[8] = {}, t2_hit[8] = {};   // STRATA_MTP_TOP2: rejections inside the MTP drafts by depth, runner-up hits
+            int64_t tk_rej[8] = {}, tk_rank[8][32] = {};  // STRATA_MTP_TOPK: the target token's rank at the first rejection
             int64_t dp_tested[8] = {}, dp_ok[8] = {};   // STRATA_SPEC_DEPTH=1: MTP drafts tested / accepted by depth
             std::vector<int32_t> cbuf((size_t) S, 0), ctail;
             strata::spec::PromptLookupSource lookup_src(sfx);
@@ -16709,9 +16710,19 @@ int main(int argc, char** argv) {
                 if (chain_n > 0) { ++chain_windows; chain_drafts += chain_n; chain_ok += std::max(0, a - (T_mtp - 1)); }
                 if (!from_sfx && !first_window)
                     for (int d = 0; d < T_mtp - 1 && d < 8 && d <= a; ++d) { ++dp_tested[d]; dp_ok[d] += d < a; }
-                if (strata::core::MtpDrafter::top2_env() && !from_sfx && !first_window && a < T_mtp - 1 && a < 8) {
-                    ++t2_rej[a];
-                    if (mtp.top2(a) == outv[(size_t) a]) ++t2_hit[a];
+                if (!from_sfx && !first_window && a < T_mtp - 1 && a < 8) {
+                    const int K = strata::core::MtpDrafter::topk_env();
+                    if (K > 0) {   // STRATA_MTP_TOPK: where the target token sat in the rejected draft's distribution
+                        ++tk_rej[a];
+                        int rank = K;
+                        for (int r = 0; r < K && r < 32; ++r)
+                            if (mtp.topk(a, r) == outv[(size_t) a]) { rank = r; break; }
+                        ++tk_rank[a][std::min(rank, 31)];
+                    }
+                    if (strata::core::MtpDrafter::top2_env()) {
+                        ++t2_rej[a];
+                        if (mtp.top2(a) == outv[(size_t) a]) ++t2_hit[a];
+                    }
                 }
                 const Clock::time_point tw1 = Clock::now();
                 std::thread adapt_thr;   // the adaptive tier beside the commit and the draft (as in generate)
@@ -17349,6 +17360,21 @@ int main(int argc, char** argv) {
                                      "of %lld windows\n", (long long) t2_rej[0], (long long) t2_hit[0], (long long) t2_rej[1],
                              (long long) t2_hit[1], (long long) t2_rej[2], (long long) t2_hit[2], (long long) t2_rej[3],
                              (long long) t2_hit[3], (long long) dec_windows);
+            if (const int K = strata::core::MtpDrafter::topk_env(); K > 0) {
+                std::fprintf(stderr, "strata serve: mtp topk (K=%d):", K);
+                for (int a = 0; a < 8; ++a) {
+                    if (tk_rej[a] == 0) continue;
+                    const int ks[5] = {1, 2, 4, 8, 16};
+                    int64_t hit[5] = {};
+                    for (int r = 0; r < 32; ++r)
+                        for (int q = 0; q < 5; ++q)
+                            if (r < ks[q] && r < K) hit[q] += tk_rank[a][r];
+                    std::fprintf(stderr, " d%d rej %lld @1 %lld @2 %lld @4 %lld @8 %lld @16 %lld", a,
+                                 (long long) tk_rej[a], (long long) hit[0], (long long) hit[1], (long long) hit[2],
+                                 (long long) hit[3], (long long) hit[4]);
+                }
+                std::fprintf(stderr, "\n");
+            }
             for (int r = 0; r < 3; ++r) if (o.expert_cache_remote[(size_t) r] > 0)
                 std::fprintf(stderr, "strata serve: CUDA%d: %lld expert entries, %lld active layer launches, %.1f MiB returned "
                                      "(%.1f MiB with full rows) in this request; host %.0f ms staging+launching, %.0f ms "
