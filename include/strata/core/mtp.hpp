@@ -79,6 +79,11 @@ public:
         return K > 0 && j >= 0 && rank >= 0 && rank < K && (size_t) (j * K + rank) < topk_.size()
                    ? topk_[(size_t) (j * K + rank)] : -1;
     }
+    /// STRATA_MTP_TOPK diagnostics: top-1 probability of the steps measured so far, and how many were below
+    /// 0.85 / 0.90 / 0.95 (for the two-stage draft estimate).
+    int64_t prob_n() const { return prob_n_; }
+    int64_t prob_below(int i) const { return i >= 0 && i < 3 ? prob_below_[i] : 0; }
+    void reset_prob_hist() { prob_n_ = 0; prob_below_[0] = prob_below_[1] = prob_below_[2] = 0; }
     int max_t() const { return max_t_; }
     uint64_t vram_bytes() const { return vram_; }
     /// The draft layer's K/V state (read-only: --serve's STRATA_STATE_HASH check hashes it)
@@ -260,6 +265,7 @@ private:
     std::vector<int32_t> top2_, dvocab_host_;
     std::vector<int32_t> topk_;
     int topk_k_ = 0;
+    int64_t prob_n_ = 0, prob_below_[3] = {};
     std::vector<float> lg_host_;
     // --pipeline-windows 2 (chain_launch)
     bool stage_source_R(int T, std::string& err);   ///< set_source_R's rows into the bound buffer

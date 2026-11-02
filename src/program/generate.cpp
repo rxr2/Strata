@@ -17373,7 +17373,11 @@ int main(int argc, char** argv) {
                                  (long long) tk_rej[a], (long long) hit[0], (long long) hit[1], (long long) hit[2],
                                  (long long) hit[3], (long long) hit[4]);
                 }
+                if (mtp.prob_n() > 0)
+                    std::fprintf(stderr, " p1<0.85 %lld/%lld <0.90 %lld <0.95 %lld", (long long) mtp.prob_below(0),
+                                 (long long) mtp.prob_n(), (long long) mtp.prob_below(1), (long long) mtp.prob_below(2));
                 std::fprintf(stderr, "\n");
+                mtp.reset_prob_hist();
             }
             for (int r = 0; r < 3; ++r) if (o.expert_cache_remote[(size_t) r] > 0)
                 std::fprintf(stderr, "strata serve: CUDA%d: %lld expert entries, %lld active layer launches, %.1f MiB returned "

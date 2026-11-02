@@ -40,6 +40,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cmath>
 #include <numeric>
 #include <exception>
 #include <fstream>
@@ -583,6 +584,16 @@ void MtpDrafter::record_topk(int j) {
         const int64_t id = idx[(size_t) r];
         topk_[(size_t) j * K + r] = dhead_ != nullptr ? dvocab_host_[(size_t) id] : (int32_t) id;
     }
+    // top-1 probability over this head's own vocabulary, for the two-stage estimate: a cheap subset first,
+    // the full head only on the low-confidence steps.
+    const double mx = (double) lg_host_[(size_t) idx[0]];
+    double sum = 0.0;
+    for (int64_t i = 0; i < nv; ++i) sum += std::exp((double) lg_host_[(size_t) i] - mx);
+    const float p1 = sum > 0.0 ? (float) (1.0 / sum) : 0.0f;
+    ++prob_n_;
+    if (p1 < 0.85f) ++prob_below_[0];
+    if (p1 < 0.90f) ++prob_below_[1];
+    if (p1 < 0.95f) ++prob_below_[2];
 }
 
 void MtpDrafter::record_top2(int j) {
